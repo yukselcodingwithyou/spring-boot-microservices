@@ -1,6 +1,7 @@
 package com.yukselcoding.productservice.controller;
 
 
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.yukselcoding.productservice.model.AverageRating;
 import com.yukselcoding.productservice.model.BoughtProductRatingInfo;
 import com.yukselcoding.productservice.model.BoughtProductRatings;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +27,7 @@ public class ProductServiceController {
 
 
     @GetMapping("/customer-rated-bought-average/{customerID}")
+    @HystrixCommand(fallbackMethod = "getFallbackBoughtProductRatingsByCustomer")
     public BoughtProductRatings getBoughtProductRatingsByCustomer(@PathVariable("customerID") String customerID) {
         BoughtProducts boughtProducts = restTemplate.getForObject("http://product-customer-service/customer/bought-products/" + customerID, BoughtProducts.class);
         List<BoughtProductRatingInfo> results = boughtProducts.getBoughtProducts().stream().map(boughtProduct -> {
@@ -32,6 +35,10 @@ public class ProductServiceController {
             return new BoughtProductRatingInfo(averageRating.getAverage(), boughtProduct.getProductID(), boughtProduct.getPrice());
         }).collect(Collectors.toList());
         return new BoughtProductRatings(results);
+    }
+
+    public BoughtProductRatings getFallbackBoughtProductRatingsByCustomer(@PathVariable("customerID") String customerID) {
+        return new BoughtProductRatings(Collections.singletonList(new BoughtProductRatingInfo(0d, "No product", 0d)));
     }
 
 
